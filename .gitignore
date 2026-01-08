@@ -1,0 +1,35 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Runs
+runs/
+run/
+
+# Temp
+temp_extract/
+
+# Development files
+jei.png
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Markdown files (except specific ones)
+*.md
+!README.md
+!LICENSE.md
+!metadata/**/*.md

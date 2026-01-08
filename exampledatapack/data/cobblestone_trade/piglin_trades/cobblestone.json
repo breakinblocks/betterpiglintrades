@@ -1,0 +1,5 @@
+{
+  "item": "minecraft:cobblestone",
+  "loot_table": "cobblestone_trade:gameplay/piglin_bartering/cobblestone",
+  "priority": 0
+}

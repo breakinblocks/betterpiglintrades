@@ -1,0 +1,5 @@
+{
+  "item": "minecraft:gold_block",
+  "loot_table": "betterpiglintrades:gameplay/piglin_bartering/gold_block",
+  "priority": 0
+}
