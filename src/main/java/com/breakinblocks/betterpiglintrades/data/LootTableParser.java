@@ -6,7 +6,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.item.Item;
@@ -27,9 +27,9 @@ public class LootTableParser {
     /**
      * Parses a loot table from the server's resource manager and extracts all possible item outputs.
      */
-    public static List<Item> parseOutputs(ResourceManager resourceManager, ResourceLocation lootTableId) {
+    public static List<Item> parseOutputs(ResourceManager resourceManager, Identifier lootTableId) {
         List<Item> outputs = new ArrayList<>();
-        ResourceLocation resourcePath = ResourceLocation.fromNamespaceAndPath(
+        Identifier resourcePath = Identifier.fromNamespaceAndPath(
                 lootTableId.getNamespace(),
                 "loot_table/" + lootTableId.getPath() + ".json"
         );
@@ -69,8 +69,8 @@ public class LootTableParser {
         String type = entry.has("type") ? entry.get("type").getAsString() : "";
 
         if (type.equals("minecraft:item") && entry.has("name")) {
-            ResourceLocation itemId = ResourceLocation.parse(entry.get("name").getAsString());
-            Item item = BuiltInRegistries.ITEM.get(itemId);
+            Identifier itemId = Identifier.parse(entry.get("name").getAsString());
+            Item item = BuiltInRegistries.ITEM.getValue(itemId);
             if (item != null && item != Items.AIR && !outputs.contains(item)) {
                 outputs.add(item);
             }

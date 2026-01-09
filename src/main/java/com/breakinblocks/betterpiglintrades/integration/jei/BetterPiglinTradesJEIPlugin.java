@@ -10,7 +10,7 @@ import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -21,15 +21,12 @@ import java.util.Map;
 @JeiPlugin
 public class BetterPiglinTradesJEIPlugin implements IModPlugin {
 
-    private static final ResourceLocation PLUGIN_ID = ResourceLocation.fromNamespaceAndPath(
-            BetterPiglinTrades.MOD_ID,
-            "jei_plugin"
-    );
+    private static final Identifier PLUGIN_ID = BetterPiglinTrades.id("jei_plugin");
 
     private static IJeiRuntime jeiRuntime;
 
     @Override
-    public ResourceLocation getPluginUid() {
+    public Identifier getPluginUid() {
         return PLUGIN_ID;
     }
 

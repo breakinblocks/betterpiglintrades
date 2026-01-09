@@ -45,7 +45,7 @@ public class PiglinAiMixin {
     }
 
     @Inject(method = "mobInteract", at = @At("HEAD"), cancellable = true)
-    private static void betterpiglintrades$mobInteract(Piglin piglin, Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+    private static void betterpiglintrades$mobInteract(ServerLevel level, Piglin piglin, Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         ItemStack itemStack = player.getItemInHand(hand);
 
         if (PiglinTradeManager.INSTANCE.isValidTradeItem(itemStack) && !itemStack.is(net.minecraft.world.item.Items.GOLD_INGOT)) {
@@ -84,7 +84,7 @@ public class PiglinAiMixin {
     }
 
     @Inject(method = "stopHoldingOffHandItem", at = @At("HEAD"), cancellable = true)
-    private static void betterpiglintrades$stopHoldingOffHandItem(Piglin piglin, boolean barterSuccess, CallbackInfo ci) {
+    private static void betterpiglintrades$stopHoldingOffHandItem(ServerLevel level, Piglin piglin, boolean barterSuccess, CallbackInfo ci) {
         ItemStack offhandItem = piglin.getItemInHand(InteractionHand.OFF_HAND);
 
         Optional<PiglinTrade> tradeOpt = PiglinTradeManager.INSTANCE.getTradeForItem(offhandItem);
@@ -92,8 +92,8 @@ public class PiglinAiMixin {
             PiglinTrade trade = tradeOpt.get();
             piglin.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
 
-            if (barterSuccess && piglin.level() instanceof ServerLevel serverLevel) {
-                List<ItemStack> responseItems = betterpiglintrades$generateLoot(serverLevel, piglin, trade);
+            if (barterSuccess) {
+                List<ItemStack> responseItems = betterpiglintrades$generateLoot(level, piglin, trade);
                 if (!responseItems.isEmpty()) {
                     betterpiglintrades$throwItems(piglin, responseItems);
                 }
@@ -104,8 +104,10 @@ public class PiglinAiMixin {
 
     @Unique
     private static void betterpiglintrades$throwItems(Piglin piglin, List<ItemStack> items) {
-        for (ItemStack stack : items) {
-            piglin.spawnAtLocation(stack.copy());
+        if (piglin.level() instanceof ServerLevel serverLevel) {
+            for (ItemStack stack : items) {
+                piglin.spawnAtLocation(serverLevel, stack.copy());
+            }
         }
     }
 

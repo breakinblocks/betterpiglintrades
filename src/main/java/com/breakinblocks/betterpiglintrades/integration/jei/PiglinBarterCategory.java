@@ -30,12 +30,10 @@ public class PiglinBarterCategory implements IRecipeCategory<PiglinBarterRecipe>
     private static final int SLOT_SIZE = 18;
 
     private final IDrawable icon;
-    private final IDrawable background;
     private final Component title;
 
     public PiglinBarterCategory(IGuiHelper guiHelper) {
         this.icon = guiHelper.createDrawableItemStack(new ItemStack(Items.PIGLIN_HEAD));
-        this.background = guiHelper.createBlankDrawable(WIDTH, HEIGHT);
         this.title = Component.translatable("gui.betterpiglintrades.category.piglin_barter");
     }
 
@@ -62,11 +60,6 @@ public class PiglinBarterCategory implements IRecipeCategory<PiglinBarterRecipe>
     @Override
     public IDrawable getIcon() {
         return icon;
-    }
-
-    @Override
-    public IDrawable getBackground() {
-        return background;
     }
 
     @Override

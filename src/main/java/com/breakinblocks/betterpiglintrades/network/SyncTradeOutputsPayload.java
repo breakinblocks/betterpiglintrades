@@ -5,7 +5,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
 import java.util.ArrayList;
@@ -16,7 +15,7 @@ import java.util.Map;
 public record SyncTradeOutputsPayload(Map<Item, List<Item>> tradeOutputs) implements CustomPacketPayload {
 
     public static final Type<SyncTradeOutputsPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(BetterPiglinTrades.MOD_ID, "sync_trade_outputs")
+            BetterPiglinTrades.id("sync_trade_outputs")
     );
 
     public static final StreamCodec<FriendlyByteBuf, SyncTradeOutputsPayload> STREAM_CODEC = new StreamCodec<>() {
@@ -26,12 +25,12 @@ public record SyncTradeOutputsPayload(Map<Item, List<Item>> tradeOutputs) implem
             Map<Item, List<Item>> outputs = new HashMap<>();
 
             for (int i = 0; i < mapSize; i++) {
-                Item tradeItem = BuiltInRegistries.ITEM.get(buf.readResourceLocation());
+                Item tradeItem = BuiltInRegistries.ITEM.getValue(buf.readIdentifier());
                 int listSize = buf.readVarInt();
                 List<Item> outputItems = new ArrayList<>();
 
                 for (int j = 0; j < listSize; j++) {
-                    outputItems.add(BuiltInRegistries.ITEM.get(buf.readResourceLocation()));
+                    outputItems.add(BuiltInRegistries.ITEM.getValue(buf.readIdentifier()));
                 }
 
                 outputs.put(tradeItem, outputItems);
@@ -45,11 +44,11 @@ public record SyncTradeOutputsPayload(Map<Item, List<Item>> tradeOutputs) implem
             buf.writeVarInt(payload.tradeOutputs.size());
 
             for (Map.Entry<Item, List<Item>> entry : payload.tradeOutputs.entrySet()) {
-                buf.writeResourceLocation(BuiltInRegistries.ITEM.getKey(entry.getKey()));
+                buf.writeIdentifier(BuiltInRegistries.ITEM.getKey(entry.getKey()));
                 buf.writeVarInt(entry.getValue().size());
 
                 for (Item item : entry.getValue()) {
-                    buf.writeResourceLocation(BuiltInRegistries.ITEM.getKey(item));
+                    buf.writeIdentifier(BuiltInRegistries.ITEM.getKey(item));
                 }
             }
         }
