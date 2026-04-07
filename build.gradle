@@ -2,6 +2,7 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.+'
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
 }
 
 version = "${minecraft_version}-${mod_version}"
@@ -109,5 +110,44 @@ publishing {
                 password = System.getenv("MAVEN_TOKEN") ?: ""
             }
         }
+    }
+}
+
+publishMods {
+    file = jar.archiveFile
+    def changelogFile = file("metadata/changelogs/${mod_version}.md")
+    changelog = changelogFile.exists() ? changelogFile.text : "Release ${version}"
+    type = STABLE
+    modLoaders.add("neoforge")
+
+    curseforge {
+        projectId = "1423977"
+        projectSlug = "betterpiglintrades"
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        minecraftVersions.add(minecraft_version)
+        optional("jei")
+    }
+
+    modrinth {
+        projectId = "v5cY5EAR"
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        minecraftVersions.add(minecraft_version)
+        optional("jei")
+    }
+
+    def githubToken = providers.environmentVariable("GITHUB_TOKEN")
+    if (githubToken.isPresent()) {
+        github {
+            repository = "Saereth/BetterPiglinTrades"
+            accessToken = githubToken
+            commitish = "main"
+        }
+    }
+}
+
+tasks.named('publishMods') {
+    def mavenUser = providers.environmentVariable("MAVEN_USER")
+    if (mavenUser.isPresent()) {
+        dependsOn 'publishMavenJavaPublicationToBreakInBlocksRepository'
     }
 }
