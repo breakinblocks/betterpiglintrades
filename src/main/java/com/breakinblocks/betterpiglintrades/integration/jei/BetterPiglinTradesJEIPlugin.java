@@ -21,7 +21,7 @@ import java.util.Map;
 @JeiPlugin
 public class BetterPiglinTradesJEIPlugin implements IModPlugin {
 
-    private static final ResourceLocation PLUGIN_ID = ResourceLocation.fromNamespaceAndPath(
+    private static final ResourceLocation PLUGIN_ID = new ResourceLocation(
             BetterPiglinTrades.MOD_ID,
             "jei_plugin"
     );

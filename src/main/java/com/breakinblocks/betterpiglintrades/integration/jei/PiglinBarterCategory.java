@@ -1,6 +1,7 @@
 package com.breakinblocks.betterpiglintrades.integration.jei;
 
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
+import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -12,6 +13,7 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -34,7 +36,7 @@ public class PiglinBarterCategory implements IRecipeCategory<PiglinBarterRecipe>
     private final Component title;
 
     public PiglinBarterCategory(IGuiHelper guiHelper) {
-        this.icon = guiHelper.createDrawableItemStack(new ItemStack(Items.PIGLIN_HEAD));
+        this.icon = guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(Items.PIGLIN_HEAD));
         this.background = guiHelper.createBlankDrawable(WIDTH, HEIGHT);
         this.title = Component.translatable("gui.betterpiglintrades.category.piglin_barter");
     }
@@ -50,23 +52,13 @@ public class PiglinBarterCategory implements IRecipeCategory<PiglinBarterRecipe>
     }
 
     @Override
-    public int getWidth() {
-        return WIDTH;
-    }
-
-    @Override
-    public int getHeight() {
-        return HEIGHT;
+    public IDrawable getBackground() {
+        return background;
     }
 
     @Override
     public IDrawable getIcon() {
         return icon;
-    }
-
-    @Override
-    public IDrawable getBackground() {
-        return background;
     }
 
     @Override

@@ -3,8 +3,7 @@ package com.breakinblocks.betterpiglintrades.mixin;
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
 import com.breakinblocks.betterpiglintrades.data.PiglinTrade;
 import com.breakinblocks.betterpiglintrades.data.PiglinTradeManager;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.piglin.PiglinAi;
@@ -125,9 +124,7 @@ public class PiglinAiMixin {
     @Unique
     private static List<ItemStack> betterpiglintrades$generateLoot(ServerLevel level, Piglin piglin, PiglinTrade trade) {
         try {
-            ResourceKey<LootTable> lootTableKey = ResourceKey.create(Registries.LOOT_TABLE, trade.lootTable());
-            LootTable lootTable = level.getServer().reloadableRegistries()
-                    .getLootTable(lootTableKey);
+            LootTable lootTable = level.getServer().getLootData().getLootTable(trade.lootTable());
 
             LootParams lootParams = new LootParams.Builder(level)
                     .withParameter(LootContextParams.THIS_ENTITY, piglin)

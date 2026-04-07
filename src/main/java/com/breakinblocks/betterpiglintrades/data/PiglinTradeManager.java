@@ -41,7 +41,8 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
 
             try {
                 PiglinTrade trade = PiglinTrade.CODEC.parse(JsonOps.INSTANCE, json)
-                        .getOrThrow(error -> new IllegalStateException("Failed to parse piglin trade " + id + ": " + error));
+                        .resultOrPartial(error -> BetterPiglinTrades.LOGGER.error("Failed to parse piglin trade {}: {}", id, error))
+                        .orElseThrow(() -> new IllegalStateException("Failed to parse piglin trade " + id));
 
                 PiglinTrade existing = newTradesByItem.get(trade.item());
                 if (existing == null || trade.priority() > existing.priority()) {

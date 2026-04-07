@@ -29,9 +29,9 @@ public class LootTableParser {
      */
     public static List<Item> parseOutputs(ResourceManager resourceManager, ResourceLocation lootTableId) {
         List<Item> outputs = new ArrayList<>();
-        ResourceLocation resourcePath = ResourceLocation.fromNamespaceAndPath(
+        ResourceLocation resourcePath = new ResourceLocation(
                 lootTableId.getNamespace(),
-                "loot_table/" + lootTableId.getPath() + ".json"
+                "loot_tables/" + lootTableId.getPath() + ".json"
         );
 
         Optional<Resource> resourceOpt = resourceManager.getResource(resourcePath);
@@ -69,7 +69,7 @@ public class LootTableParser {
         String type = entry.has("type") ? entry.get("type").getAsString() : "";
 
         if (type.equals("minecraft:item") && entry.has("name")) {
-            ResourceLocation itemId = ResourceLocation.parse(entry.get("name").getAsString());
+            ResourceLocation itemId = new ResourceLocation(entry.get("name").getAsString());
             Item item = BuiltInRegistries.ITEM.get(itemId);
             if (item != null && item != Items.AIR && !outputs.contains(item)) {
                 outputs.add(item);
