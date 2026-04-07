@@ -5,8 +5,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.item.Item;
@@ -18,40 +19,36 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Parses loot table JSON files on the server side to extract possible item outputs.
- */
 public class LootTableParser {
     private static final Gson GSON = new Gson();
 
-    /**
-     * Parses a loot table from the server's resource manager and extracts all possible item outputs.
-     */
-    public static List<Item> parseOutputs(ResourceManager resourceManager, ResourceLocation lootTableId) {
-        List<Item> outputs = new ArrayList<>();
-        ResourceLocation resourcePath = new ResourceLocation(
+    private record WeightedItem(Item item, int weight) {}
+
+    public static List<OutputEntry> parseOutputs(ResourceManager resourceManager, Identifier lootTableId) {
+        Identifier resourcePath = Identifier.fromNamespaceAndPath(
                 lootTableId.getNamespace(),
-                "loot_tables/" + lootTableId.getPath() + ".json"
+                "loot_table/" + lootTableId.getPath() + ".json"
         );
 
         Optional<Resource> resourceOpt = resourceManager.getResource(resourcePath);
         if (resourceOpt.isEmpty()) {
             BetterPiglinTrades.LOGGER.warn("Could not find loot table resource: {}", resourcePath);
-            return outputs;
+            return List.of();
         }
 
         try (BufferedReader reader = resourceOpt.get().openAsReader()) {
             JsonObject json = GSON.fromJson(reader, JsonObject.class);
-            extractItemsFromLootTable(json, outputs);
-        } catch (IOException e) {
+            return extractWeightedItems(json);
+        } catch (Exception e) {
             BetterPiglinTrades.LOGGER.error("Failed to read loot table {}: {}", lootTableId, e.getMessage());
+            return List.of();
         }
-
-        return outputs;
     }
 
-    private static void extractItemsFromLootTable(JsonObject json, List<Item> outputs) {
-        if (!json.has("pools")) return;
+    private static List<OutputEntry> extractWeightedItems(JsonObject json) {
+        if (!json.has("pools")) return List.of();
+
+        List<WeightedItem> allItems = new ArrayList<>();
 
         JsonArray pools = json.getAsJsonArray("pools");
         for (JsonElement poolElement : pools) {
@@ -60,24 +57,51 @@ public class LootTableParser {
 
             JsonArray entries = pool.getAsJsonArray("entries");
             for (JsonElement entryElement : entries) {
-                extractItemFromEntry(entryElement.getAsJsonObject(), outputs);
+                collectWeightedItems(entryElement.getAsJsonObject(), allItems);
             }
         }
+
+        if (allItems.isEmpty()) return List.of();
+
+        int totalWeight = allItems.stream().mapToInt(WeightedItem::weight).sum();
+        List<OutputEntry> results = new ArrayList<>();
+        for (WeightedItem wi : allItems) {
+            if (!results.stream().anyMatch(e -> e.item() == wi.item())) {
+                float chance = (float) wi.weight() / totalWeight * 100.0f;
+                results.add(new OutputEntry(wi.item(), chance));
+            }
+        }
+        return results;
     }
 
-    private static void extractItemFromEntry(JsonObject entry, List<Item> outputs) {
+    private static void collectWeightedItems(JsonObject entry, List<WeightedItem> results) {
         String type = entry.has("type") ? entry.get("type").getAsString() : "";
+        int weight = entry.has("weight") ? entry.get("weight").getAsInt() : 1;
 
-        if (type.equals("minecraft:item") && entry.has("name")) {
-            ResourceLocation itemId = new ResourceLocation(entry.get("name").getAsString());
-            Item item = BuiltInRegistries.ITEM.get(itemId);
-            if (item != null && item != Items.AIR && !outputs.contains(item)) {
-                outputs.add(item);
+        if (type.equals("minecraft:item")) {
+            String itemIdStr = null;
+            if (entry.has("name")) {
+                itemIdStr = entry.get("name").getAsString();
+            } else if (entry.has("id")) {
+                itemIdStr = entry.get("id").getAsString();
+            }
+
+            if (itemIdStr != null) {
+                Identifier itemId = Identifier.parse(itemIdStr);
+                BuiltInRegistries.ITEM.get(itemId).map(Holder::value).ifPresent(item -> {
+                    if (item != Items.AIR) {
+                        results.add(new WeightedItem(item, weight));
+                    }
+                });
             }
         } else if ((type.equals("minecraft:alternatives") || type.equals("minecraft:group") || type.equals("minecraft:sequence"))
                 && entry.has("children")) {
             for (JsonElement child : entry.getAsJsonArray("children")) {
-                extractItemFromEntry(child.getAsJsonObject(), outputs);
+                JsonObject childObj = child.getAsJsonObject();
+                if (!childObj.has("weight")) {
+                    childObj.addProperty("weight", weight);
+                }
+                collectWeightedItems(childObj, results);
             }
         }
     }

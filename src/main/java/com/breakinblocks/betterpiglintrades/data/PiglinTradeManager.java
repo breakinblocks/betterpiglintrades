@@ -1,11 +1,8 @@
 package com.breakinblocks.betterpiglintrades.data;
 
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.mojang.serialization.JsonOps;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -18,32 +15,27 @@ import java.util.*;
  * Manages piglin trade definitions loaded from datapacks.
  * Trades are loaded from: data/&lt;namespace&gt;/piglin_trades/&lt;name&gt;.json
  */
-public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+public class PiglinTradeManager extends SimpleJsonResourceReloadListener<PiglinTrade> {
     public static final PiglinTradeManager INSTANCE = new PiglinTradeManager();
 
     private Map<Item, PiglinTrade> tradesByItem = new HashMap<>();
     private List<PiglinTrade> allTrades = new ArrayList<>();
-    private Map<Item, List<Item>> resolvedOutputs = new HashMap<>();
+    private Map<Item, List<OutputEntry>> resolvedOutputs = new HashMap<>();
 
     public PiglinTradeManager() {
-        super(GSON, "piglin_trades");
+        super(PiglinTrade.CODEC, FileToIdConverter.json("piglin_trades"));
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> jsonMap, ResourceManager resourceManager, ProfilerFiller profiler) {
+    protected void apply(Map<Identifier, PiglinTrade> tradeMap, ResourceManager resourceManager, ProfilerFiller profiler) {
         Map<Item, PiglinTrade> newTradesByItem = new HashMap<>();
         List<PiglinTrade> newAllTrades = new ArrayList<>();
 
-        for (Map.Entry<ResourceLocation, JsonElement> entry : jsonMap.entrySet()) {
-            ResourceLocation id = entry.getKey();
-            JsonElement json = entry.getValue();
+        for (Map.Entry<Identifier, PiglinTrade> entry : tradeMap.entrySet()) {
+            Identifier id = entry.getKey();
+            PiglinTrade trade = entry.getValue();
 
             try {
-                PiglinTrade trade = PiglinTrade.CODEC.parse(JsonOps.INSTANCE, json)
-                        .resultOrPartial(error -> BetterPiglinTrades.LOGGER.error("Failed to parse piglin trade {}: {}", id, error))
-                        .orElseThrow(() -> new IllegalStateException("Failed to parse piglin trade " + id));
-
                 PiglinTrade existing = newTradesByItem.get(trade.item());
                 if (existing == null || trade.priority() > existing.priority()) {
                     newTradesByItem.put(trade.item(), trade);
@@ -64,7 +56,7 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
 
     private void resolveAllOutputs(ResourceManager resourceManager) {
         for (Map.Entry<Item, PiglinTrade> entry : tradesByItem.entrySet()) {
-            List<Item> outputs = LootTableParser.parseOutputs(resourceManager, entry.getValue().lootTable());
+            List<OutputEntry> outputs = LootTableParser.parseOutputs(resourceManager, entry.getValue().lootTable());
             if (!outputs.isEmpty()) {
                 resolvedOutputs.put(entry.getKey(), outputs);
             }
@@ -124,14 +116,11 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
      * Gets all resolved outputs for all trades.
      * This is used for syncing to clients for JEI display.
      */
-    public Map<Item, List<Item>> getResolvedOutputs() {
+    public Map<Item, List<OutputEntry>> getResolvedOutputs() {
         return Collections.unmodifiableMap(resolvedOutputs);
     }
 
-    /**
-     * Gets the resolved outputs for a specific trade item.
-     */
-    public Optional<List<Item>> getOutputsForItem(Item item) {
+    public Optional<List<OutputEntry>> getOutputsForItem(Item item) {
         return Optional.ofNullable(resolvedOutputs.get(item));
     }
 }

@@ -2,6 +2,7 @@ package com.breakinblocks.betterpiglintrades.integration.jei;
 
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
 import com.breakinblocks.betterpiglintrades.client.ClientTradeOutputCache;
+import com.breakinblocks.betterpiglintrades.data.OutputEntry;
 import com.breakinblocks.betterpiglintrades.data.PiglinTrade;
 import com.breakinblocks.betterpiglintrades.data.PiglinTradeManager;
 import mezz.jei.api.IModPlugin;
@@ -10,7 +11,7 @@ import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -21,15 +22,12 @@ import java.util.Map;
 @JeiPlugin
 public class BetterPiglinTradesJEIPlugin implements IModPlugin {
 
-    private static final ResourceLocation PLUGIN_ID = new ResourceLocation(
-            BetterPiglinTrades.MOD_ID,
-            "jei_plugin"
-    );
+    private static final Identifier PLUGIN_ID = BetterPiglinTrades.id("jei_plugin");
 
     private static IJeiRuntime jeiRuntime;
 
     @Override
-    public ResourceLocation getPluginUid() {
+    public Identifier getPluginUid() {
         return PLUGIN_ID;
     }
 
@@ -47,13 +45,14 @@ public class BetterPiglinTradesJEIPlugin implements IModPlugin {
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         Map<Item, PiglinTrade> trades = PiglinTradeManager.INSTANCE.getAllTrades();
         for (Item item : trades.keySet()) {
-            registration.addRecipeCatalyst(new ItemStack(item), PiglinBarterCategory.RECIPE_TYPE);
+            registration.addCraftingStation(PiglinBarterCategory.RECIPE_TYPE, item);
         }
     }
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime runtime) {
         jeiRuntime = runtime;
+        ClientTradeOutputCache.setOnCacheUpdated(BetterPiglinTradesJEIPlugin::reloadRecipes);
     }
 
     public static void reloadRecipes() {
@@ -72,7 +71,7 @@ public class BetterPiglinTradesJEIPlugin implements IModPlugin {
                 if (!outputs.isEmpty()) {
                     recipes.add(new PiglinBarterRecipe(
                             new ItemStack(entry.getKey()),
-                            outputs.stream().map(ItemStack::new).toList(),
+                            outputs,
                             entry.getValue()));
                 }
             });

@@ -1,23 +1,28 @@
 package com.breakinblocks.betterpiglintrades.client;
 
-import com.breakinblocks.betterpiglintrades.integration.jei.BetterPiglinTradesJEIPlugin;
+import com.breakinblocks.betterpiglintrades.data.OutputEntry;
 import net.minecraft.world.item.Item;
 
 import java.util.*;
 
 public class ClientTradeOutputCache {
-    private static Map<Item, List<Item>> cachedOutputs = new HashMap<>();
+    private static Map<Item, List<OutputEntry>> cachedOutputs = new HashMap<>();
+    private static Runnable onCacheUpdated = () -> {};
 
-    public static void updateCache(Map<Item, List<Item>> outputs) {
-        cachedOutputs = new HashMap<>(outputs);
-        BetterPiglinTradesJEIPlugin.reloadRecipes();
+    public static void setOnCacheUpdated(Runnable callback) {
+        onCacheUpdated = callback;
     }
 
-    public static Optional<List<Item>> getOutputsForItem(Item item) {
+    public static void updateCache(Map<Item, List<OutputEntry>> outputs) {
+        cachedOutputs = new HashMap<>(outputs);
+        onCacheUpdated.run();
+    }
+
+    public static Optional<List<OutputEntry>> getOutputsForItem(Item item) {
         return Optional.ofNullable(cachedOutputs.get(item));
     }
 
-    public static Map<Item, List<Item>> getAllOutputs() {
+    public static Map<Item, List<OutputEntry>> getAllOutputs() {
         return Collections.unmodifiableMap(cachedOutputs);
     }
 

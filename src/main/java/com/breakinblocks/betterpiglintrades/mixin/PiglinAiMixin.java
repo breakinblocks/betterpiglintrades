@@ -3,18 +3,21 @@ package com.breakinblocks.betterpiglintrades.mixin;
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
 import com.breakinblocks.betterpiglintrades.data.PiglinTrade;
 import com.breakinblocks.betterpiglintrades.data.PiglinTradeManager;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.piglin.PiglinAi;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -44,10 +47,10 @@ public class PiglinAiMixin {
     }
 
     @Inject(method = "mobInteract", at = @At("HEAD"), cancellable = true)
-    private static void betterpiglintrades$mobInteract(Piglin piglin, Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
+    private static void betterpiglintrades$mobInteract(ServerLevel level, Piglin piglin, Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
         ItemStack itemStack = player.getItemInHand(hand);
 
-        if (PiglinTradeManager.INSTANCE.isValidTradeItem(itemStack) && !itemStack.is(net.minecraft.world.item.Items.GOLD_INGOT)) {
+        if (PiglinTradeManager.INSTANCE.isValidTradeItem(itemStack) && !itemStack.is(Items.GOLD_INGOT)) {
             if (betterpiglintrades$canAdmire(piglin, itemStack)) {
                 ItemStack singleItem = itemStack.split(1);
                 piglin.setItemInHand(InteractionHand.OFF_HAND, singleItem);
@@ -59,17 +62,17 @@ public class PiglinAiMixin {
 
     @Unique
     private static boolean betterpiglintrades$canAdmire(Piglin piglin, ItemStack stack) {
-        boolean admiringDisabled = piglin.getBrain().hasMemoryValue(net.minecraft.world.entity.ai.memory.MemoryModuleType.ADMIRING_DISABLED);
+        boolean admiringDisabled = piglin.getBrain().hasMemoryValue(MemoryModuleType.ADMIRING_DISABLED);
         return !admiringDisabled
                 && !piglin.isBaby()
                 && piglin.getOffhandItem().isEmpty()
-                && !piglin.getBrain().hasMemoryValue(net.minecraft.world.entity.ai.memory.MemoryModuleType.ADMIRING_ITEM);
+                && !piglin.getBrain().hasMemoryValue(MemoryModuleType.ADMIRING_ITEM);
     }
 
     @Unique
     private static void betterpiglintrades$admireGoldItem(Piglin piglin) {
         piglin.getBrain().setMemoryWithExpiry(
-                net.minecraft.world.entity.ai.memory.MemoryModuleType.ADMIRING_ITEM,
+                MemoryModuleType.ADMIRING_ITEM,
                 true,
                 120L
         );
@@ -77,13 +80,13 @@ public class PiglinAiMixin {
 
     @Inject(method = "wantsToPickup", at = @At("HEAD"), cancellable = true)
     private static void betterpiglintrades$wantsToPickup(Piglin piglin, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
-        if (PiglinTradeManager.INSTANCE.isValidTradeItem(stack) && !stack.is(net.minecraft.world.item.Items.GOLD_INGOT)) {
+        if (PiglinTradeManager.INSTANCE.isValidTradeItem(stack) && !stack.is(Items.GOLD_INGOT)) {
             cir.setReturnValue(piglin.canPickUpLoot() && piglin.getOffhandItem().isEmpty());
         }
     }
 
     @Inject(method = "stopHoldingOffHandItem", at = @At("HEAD"), cancellable = true)
-    private static void betterpiglintrades$stopHoldingOffHandItem(Piglin piglin, boolean barterSuccess, CallbackInfo ci) {
+    private static void betterpiglintrades$stopHoldingOffHandItem(ServerLevel level, Piglin piglin, boolean barterSuccess, CallbackInfo ci) {
         ItemStack offhandItem = piglin.getItemInHand(InteractionHand.OFF_HAND);
 
         Optional<PiglinTrade> tradeOpt = PiglinTradeManager.INSTANCE.getTradeForItem(offhandItem);
@@ -91,10 +94,10 @@ public class PiglinAiMixin {
             PiglinTrade trade = tradeOpt.get();
             piglin.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
 
-            if (barterSuccess && piglin.level() instanceof ServerLevel serverLevel) {
-                List<ItemStack> responseItems = betterpiglintrades$generateLoot(serverLevel, piglin, trade);
+            if (barterSuccess) {
+                List<ItemStack> responseItems = betterpiglintrades$generateLoot(level, piglin, trade);
                 if (!responseItems.isEmpty()) {
-                    betterpiglintrades$throwItems(piglin, responseItems);
+                    betterpiglintrades$throwItems(piglin, level, responseItems);
                 }
             }
             ci.cancel();
@@ -102,9 +105,9 @@ public class PiglinAiMixin {
     }
 
     @Unique
-    private static void betterpiglintrades$throwItems(Piglin piglin, List<ItemStack> items) {
+    private static void betterpiglintrades$throwItems(Piglin piglin, ServerLevel level, List<ItemStack> items) {
         for (ItemStack stack : items) {
-            piglin.spawnAtLocation(stack.copy());
+            piglin.spawnAtLocation(level, stack.copy());
         }
     }
 
@@ -124,7 +127,8 @@ public class PiglinAiMixin {
     @Unique
     private static List<ItemStack> betterpiglintrades$generateLoot(ServerLevel level, Piglin piglin, PiglinTrade trade) {
         try {
-            LootTable lootTable = level.getServer().getLootData().getLootTable(trade.lootTable());
+            ResourceKey<LootTable> lootTableKey = ResourceKey.create(Registries.LOOT_TABLE, trade.lootTable());
+            LootTable lootTable = level.getServer().reloadableRegistries().getLootTable(lootTableKey);
 
             LootParams lootParams = new LootParams.Builder(level)
                     .withParameter(LootContextParams.THIS_ENTITY, piglin)
