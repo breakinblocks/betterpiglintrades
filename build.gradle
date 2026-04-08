@@ -138,7 +138,7 @@ publishMods {
     def githubToken = providers.environmentVariable("GITHUB_TOKEN")
     if (githubToken.isPresent()) {
         github {
-            repository = "Saereth/BetterPiglinTrades"
+            repository = "breakinblocks/betterpiglintrades"
             accessToken = githubToken
             commitish = "main"
         }
