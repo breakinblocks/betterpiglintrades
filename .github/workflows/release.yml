@@ -27,16 +27,7 @@ jobs:
       - name: Build
         run: chmod +x gradlew && ./gradlew clean build
 
-      - name: Publish to Maven
-        continue-on-error: true
-        run: ./gradlew publish
-        env:
-          MAVEN_USER: ${{ secrets.MAVEN_USER }}
-          MAVEN_TOKEN: ${{ secrets.MAVEN_TOKEN }}
-
-      - name: Publish to CurseForge, Modrinth, and GitHub
+      - name: Create GitHub Release
         run: ./gradlew publishMods
         env:
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
