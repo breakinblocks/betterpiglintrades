@@ -2,7 +2,6 @@ package com.breakinblocks.betterpiglintrades.data;
 
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.core.Holder;
@@ -14,15 +13,21 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Parses loot table JSON files on the server side to extract the possible item outputs
+ * along with the chance of each one being rolled.
+ */
 public class LootTableParser {
     private static final Gson GSON = new Gson();
 
-    private record WeightedItem(Item item, int weight) {}
+    private record WeightedItem(Item item, int weight) {
+    }
 
     public static List<OutputEntry> parseOutputs(ResourceManager resourceManager, Identifier lootTableId) {
         Identifier resourcePath = Identifier.fromNamespaceAndPath(
@@ -46,37 +51,45 @@ public class LootTableParser {
     }
 
     private static List<OutputEntry> extractWeightedItems(JsonObject json) {
-        if (!json.has("pools")) return List.of();
+        if (!json.has("pools")) {
+            return List.of();
+        }
 
-        List<WeightedItem> allItems = new ArrayList<>();
+        Map<Item, Float> chances = new LinkedHashMap<>();
 
-        JsonArray pools = json.getAsJsonArray("pools");
-        for (JsonElement poolElement : pools) {
+        for (JsonElement poolElement : json.getAsJsonArray("pools")) {
             JsonObject pool = poolElement.getAsJsonObject();
-            if (!pool.has("entries")) continue;
+            if (!pool.has("entries")) {
+                continue;
+            }
 
-            JsonArray entries = pool.getAsJsonArray("entries");
-            for (JsonElement entryElement : entries) {
-                collectWeightedItems(entryElement.getAsJsonObject(), allItems);
+            List<WeightedItem> collected = new ArrayList<>();
+            for (JsonElement entryElement : pool.getAsJsonArray("entries")) {
+                collectWeightedItems(entryElement.getAsJsonObject(), collected, 1);
+            }
+
+            int poolWeight = collected.stream().mapToInt(WeightedItem::weight).sum();
+            if (poolWeight <= 0) {
+                continue;
+            }
+
+            for (WeightedItem weighted : collected) {
+                chances.merge(weighted.item(), weighted.weight() * 100.0f / poolWeight, Float::sum);
             }
         }
 
-        if (allItems.isEmpty()) return List.of();
-
-        int totalWeight = allItems.stream().mapToInt(WeightedItem::weight).sum();
-        List<OutputEntry> results = new ArrayList<>();
-        for (WeightedItem wi : allItems) {
-            if (!results.stream().anyMatch(e -> e.item() == wi.item())) {
-                float chance = (float) wi.weight() / totalWeight * 100.0f;
-                results.add(new OutputEntry(wi.item(), chance));
-            }
+        List<OutputEntry> results = new ArrayList<>(chances.size());
+        for (Map.Entry<Item, Float> entry : chances.entrySet()) {
+            results.add(new OutputEntry(entry.getKey(), Math.min(entry.getValue(), 100.0f)));
         }
+
+        results.sort((a, b) -> Float.compare(b.chance(), a.chance()));
         return results;
     }
 
-    private static void collectWeightedItems(JsonObject entry, List<WeightedItem> results) {
+    private static void collectWeightedItems(JsonObject entry, List<WeightedItem> results, int inheritedWeight) {
         String type = entry.has("type") ? entry.get("type").getAsString() : "";
-        int weight = entry.has("weight") ? entry.get("weight").getAsInt() : 1;
+        int weight = entry.has("weight") ? entry.get("weight").getAsInt() : inheritedWeight;
 
         if (type.equals("minecraft:item")) {
             String itemIdStr = null;
@@ -97,11 +110,7 @@ public class LootTableParser {
         } else if ((type.equals("minecraft:alternatives") || type.equals("minecraft:group") || type.equals("minecraft:sequence"))
                 && entry.has("children")) {
             for (JsonElement child : entry.getAsJsonArray("children")) {
-                JsonObject childObj = child.getAsJsonObject();
-                if (!childObj.has("weight")) {
-                    childObj.addProperty("weight", weight);
-                }
-                collectWeightedItems(childObj, results);
+                collectWeightedItems(child.getAsJsonObject(), results, weight);
             }
         }
     }

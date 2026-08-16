@@ -38,10 +38,6 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     maven {
-        name = "CurseMaven"
-        url = "https://cursemaven.com"
-    }
-    maven {
         name = "Jared's maven"
         url = "https://maven.blamejared.com/"
     }
@@ -52,7 +48,11 @@ repositories {
 }
 
 dependencies {
-    implementation "curse.maven:jei-238222:7884734"
+    // JEI - optional integration
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    // Full JEI jar for dev environment testing
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
 }
 
 tasks.withType(ProcessResources).configureEach {
@@ -140,7 +140,7 @@ publishMods {
         github {
             repository = "breakinblocks/betterpiglintrades"
             accessToken = githubToken
-            commitish = "main"
+            commitish = providers.environmentVariable("GITHUB_SHA").getOrElse(github_branch)
         }
     }
 }

@@ -6,7 +6,7 @@ import net.minecraft.world.item.Item;
 import java.util.*;
 
 public class ClientTradeOutputCache {
-    private static Map<Item, List<OutputEntry>> cachedOutputs = new HashMap<>();
+    private static Map<Item, List<OutputEntry>> cachedOutputs = Map.of();
     private static Runnable onCacheUpdated = () -> {};
 
     public static void setOnCacheUpdated(Runnable callback) {
@@ -14,7 +14,7 @@ public class ClientTradeOutputCache {
     }
 
     public static void updateCache(Map<Item, List<OutputEntry>> outputs) {
-        cachedOutputs = new HashMap<>(outputs);
+        cachedOutputs = Map.copyOf(outputs);
         onCacheUpdated.run();
     }
 
@@ -23,7 +23,7 @@ public class ClientTradeOutputCache {
     }
 
     public static Map<Item, List<OutputEntry>> getAllOutputs() {
-        return Collections.unmodifiableMap(cachedOutputs);
+        return cachedOutputs;
     }
 
     public static boolean hasOutputs() {
@@ -31,6 +31,7 @@ public class ClientTradeOutputCache {
     }
 
     public static void clear() {
-        cachedOutputs.clear();
+        cachedOutputs = Map.of();
+        onCacheUpdated.run();
     }
 }

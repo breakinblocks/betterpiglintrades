@@ -4,14 +4,13 @@ import com.breakinblocks.betterpiglintrades.data.PiglinTradeManager;
 import com.breakinblocks.betterpiglintrades.network.SyncTradeOutputsPayload;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import org.slf4j.Logger;
@@ -28,7 +27,7 @@ public class BetterPiglinTrades {
     public BetterPiglinTrades(IEventBus eventBus, ModContainer container, Dist dist) {
         eventBus.addListener(this::registerPayloads);
         NeoForge.EVENT_BUS.addListener(this::onAddReloadListeners);
-        NeoForge.EVENT_BUS.addListener(this::onPlayerJoin);
+        NeoForge.EVENT_BUS.addListener(this::onDatapackSync);
     }
 
     private void registerPayloads(RegisterPayloadHandlersEvent event) {
@@ -44,10 +43,8 @@ public class BetterPiglinTrades {
         event.addListener(id("piglin_trades"), PiglinTradeManager.INSTANCE);
     }
 
-    private void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-            PacketDistributor.sendToPlayer(serverPlayer,
-                    new SyncTradeOutputsPayload(PiglinTradeManager.INSTANCE.getResolvedOutputs()));
-        }
+    private void onDatapackSync(OnDatapackSyncEvent event) {
+        SyncTradeOutputsPayload payload = new SyncTradeOutputsPayload(PiglinTradeManager.INSTANCE.getResolvedOutputs());
+        event.getRelevantPlayers().forEach(player -> PacketDistributor.sendToPlayer(player, payload));
     }
 }

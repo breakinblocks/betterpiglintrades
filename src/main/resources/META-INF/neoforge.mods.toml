@@ -1,7 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "${loader_version_range}"
 license = "MIT"
-issueTrackerURL = "https://github.com/Saereth/BetterPiglinTrades/issues"
+issueTrackerURL = "https://github.com/breakinblocks/betterpiglintrades/issues"
 
 [[mods]]
 modId = "${mod_id}"
@@ -9,6 +9,8 @@ version = "${mod_version}"
 displayName = "${mod_name}"
 authors = "${mod_authors}"
 description = '''${mod_description}'''
+logoFile = "logo.png"
+displayURL = "https://github.com/breakinblocks/betterpiglintrades"
 
 [[mixins]]
 config = "betterpiglintrades.mixins.json"
@@ -26,3 +28,10 @@ type = "required"
 versionRange = "${minecraft_version_range}"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "jei"
+type = "optional"
+versionRange = "*"
+ordering = "AFTER"
+side = "CLIENT"

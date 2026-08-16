@@ -4,7 +4,6 @@ import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
 import com.breakinblocks.betterpiglintrades.data.OutputEntry;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
-import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.helpers.IGuiHelper;
@@ -31,6 +30,7 @@ public class PiglinBarterCategory implements IRecipeCategory<PiglinBarterRecipe>
     private static final int SLOTS_PER_ROW = 9;
     private static final int MAX_ROWS = 5;
     private static final int SLOT_SIZE = 18;
+    private static final int OUTPUT_Y = 38;
 
     private final IDrawable icon;
     private final Component title;
@@ -70,34 +70,15 @@ public class PiglinBarterCategory implements IRecipeCategory<PiglinBarterRecipe>
         builder.addSlot(RecipeIngredientRole.INPUT, (WIDTH - SLOT_SIZE) / 2, 2).add(recipe.input());
 
         int maxSlots = SLOTS_PER_ROW * MAX_ROWS;
-        int outputY = 38;
         for (int i = 0; i < recipe.outputs().size() && i < maxSlots; i++) {
+            OutputEntry entry = recipe.outputs().get(i);
             int row = i / SLOTS_PER_ROW;
             int col = i % SLOTS_PER_ROW;
-            builder.addSlot(RecipeIngredientRole.OUTPUT, col * SLOT_SIZE, outputY + row * SLOT_SIZE)
-                    .add(new ItemStack(recipe.outputs().get(i).item()));
-        }
-    }
 
-    @Override
-    public void getTooltip(ITooltipBuilder tooltip, PiglinBarterRecipe recipe, IRecipeSlotsView recipeSlotsView, double mouseX, double mouseY) {
-        int outputY = 38;
-        int maxSlots = SLOTS_PER_ROW * MAX_ROWS;
-
-        for (int i = 0; i < recipe.outputs().size() && i < maxSlots; i++) {
-            int row = i / SLOTS_PER_ROW;
-            int col = i % SLOTS_PER_ROW;
-            int slotX = col * SLOT_SIZE;
-            int slotY = outputY + row * SLOT_SIZE;
-
-            if (mouseX >= slotX && mouseX < slotX + SLOT_SIZE && mouseY >= slotY && mouseY < slotY + SLOT_SIZE) {
-                OutputEntry entry = recipe.outputs().get(i);
-                String chanceStr = entry.chance() < 1.0f
-                        ? String.format("%.2f%%", entry.chance())
-                        : String.format("%.1f%%", entry.chance());
-                tooltip.add(Component.translatable("gui.betterpiglintrades.chance", chanceStr));
-                break;
-            }
+            builder.addSlot(RecipeIngredientRole.OUTPUT, col * SLOT_SIZE, OUTPUT_Y + row * SLOT_SIZE)
+                    .add(new ItemStack(entry.item()))
+                    .addRichTooltipCallback((slotView, tooltip) ->
+                            tooltip.add(Component.translatable("gui.betterpiglintrades.chance", formatChance(entry.chance()))));
         }
     }
 
@@ -112,5 +93,12 @@ public class PiglinBarterCategory implements IRecipeCategory<PiglinBarterRecipe>
             String overflow = "+" + (recipe.outputs().size() - maxSlots) + " more...";
             guiGraphics.text(minecraft.font, overflow, 0, HEIGHT - 10, 0xFF808080, false);
         }
+    }
+
+    private static String formatChance(float chance) {
+        if (chance >= 10.0f) {
+            return String.format("%.1f%%", chance);
+        }
+        return chance < 0.1f ? String.format("%.3f%%", chance) : String.format("%.2f%%", chance);
     }
 }
