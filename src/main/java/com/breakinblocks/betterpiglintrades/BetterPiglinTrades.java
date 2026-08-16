@@ -9,11 +9,11 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
 @Mod(BetterPiglinTrades.MOD_ID)
@@ -21,10 +21,14 @@ public class BetterPiglinTrades {
     public static final String MOD_ID = "betterpiglintrades";
     public static final Logger LOGGER = LogUtils.getLogger();
 
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    }
+
     public BetterPiglinTrades(IEventBus modEventBus, ModContainer modContainer) {
         NeoForge.EVENT_BUS.addListener(this::onAddReloadListeners);
         modEventBus.addListener(this::registerPayloads);
-        NeoForge.EVENT_BUS.addListener(this::onPlayerJoin);
+        NeoForge.EVENT_BUS.addListener(this::onDatapackSync);
     }
 
     private void onAddReloadListeners(AddReloadListenerEvent event) {
@@ -41,10 +45,8 @@ public class BetterPiglinTrades {
         );
     }
 
-    private void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-            PacketDistributor.sendToPlayer(serverPlayer,
-                    new SyncTradeOutputsPayload(PiglinTradeManager.INSTANCE.getResolvedOutputs()));
-        }
+    private void onDatapackSync(OnDatapackSyncEvent event) {
+        SyncTradeOutputsPayload payload = new SyncTradeOutputsPayload(PiglinTradeManager.INSTANCE.getResolvedOutputs());
+        event.getRelevantPlayers().forEach(player -> PacketDistributor.sendToPlayer(player, payload));
     }
 }

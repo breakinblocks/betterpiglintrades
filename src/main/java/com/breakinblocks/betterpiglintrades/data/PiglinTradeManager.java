@@ -22,9 +22,9 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public static final PiglinTradeManager INSTANCE = new PiglinTradeManager();
 
-    private Map<Item, PiglinTrade> tradesByItem = new HashMap<>();
-    private List<PiglinTrade> allTrades = new ArrayList<>();
-    private Map<Item, List<Item>> resolvedOutputs = new HashMap<>();
+    private Map<Item, PiglinTrade> tradesByItem = Map.of();
+    private List<PiglinTrade> allTrades = List.of();
+    private Map<Item, List<OutputEntry>> resolvedOutputs = Map.of();
 
     public PiglinTradeManager() {
         super(GSON, "piglin_trades");
@@ -32,8 +32,7 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
 
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> jsonMap, ResourceManager resourceManager, ProfilerFiller profiler) {
-        Map<Item, PiglinTrade> newTradesByItem = new HashMap<>();
-        List<PiglinTrade> newAllTrades = new ArrayList<>();
+        Map<Item, PiglinTrade> winners = new HashMap<>();
 
         for (Map.Entry<ResourceLocation, JsonElement> entry : jsonMap.entrySet()) {
             ResourceLocation id = entry.getKey();
@@ -43,31 +42,49 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
                 PiglinTrade trade = PiglinTrade.CODEC.parse(JsonOps.INSTANCE, json)
                         .getOrThrow(error -> new IllegalStateException("Failed to parse piglin trade " + id + ": " + error));
 
-                PiglinTrade existing = newTradesByItem.get(trade.item());
-                if (existing == null || trade.priority() > existing.priority()) {
-                    newTradesByItem.put(trade.item(), trade);
+                if (trade.enabled() && trade.lootTable().isEmpty()) {
+                    BetterPiglinTrades.LOGGER.error("Piglin trade {} is enabled but has no loot_table, ignoring it", id);
+                    continue;
                 }
-                newAllTrades.add(trade);
+
+                PiglinTrade existing = winners.get(trade.item());
+                if (existing == null || trade.priority() > existing.priority()) {
+                    winners.put(trade.item(), trade);
+                }
             } catch (Exception e) {
                 BetterPiglinTrades.LOGGER.error("Failed to load piglin trade {}: {}", id, e.getMessage());
             }
         }
 
-        this.tradesByItem = newTradesByItem;
-        this.allTrades = newAllTrades;
-        this.resolvedOutputs.clear();
-        resolveAllOutputs(resourceManager);
-
-        BetterPiglinTrades.LOGGER.info("Loaded {} piglin trades ({} unique items)", newAllTrades.size(), newTradesByItem.size());
-    }
-
-    private void resolveAllOutputs(ResourceManager resourceManager) {
-        for (Map.Entry<Item, PiglinTrade> entry : tradesByItem.entrySet()) {
-            List<Item> outputs = LootTableParser.parseOutputs(resourceManager, entry.getValue().lootTable());
-            if (!outputs.isEmpty()) {
-                resolvedOutputs.put(entry.getKey(), outputs);
+        int disabled = 0;
+        Map<Item, PiglinTrade> newTradesByItem = new HashMap<>();
+        for (Map.Entry<Item, PiglinTrade> entry : winners.entrySet()) {
+            if (entry.getValue().enabled()) {
+                newTradesByItem.put(entry.getKey(), entry.getValue());
+            } else {
+                disabled++;
             }
         }
+
+        this.tradesByItem = Map.copyOf(newTradesByItem);
+        this.allTrades = List.copyOf(newTradesByItem.values());
+        this.resolvedOutputs = resolveAllOutputs(resourceManager, this.tradesByItem);
+
+        BetterPiglinTrades.LOGGER.info("Loaded {} piglin trades ({} disabled)", newTradesByItem.size(), disabled);
+    }
+
+    private static Map<Item, List<OutputEntry>> resolveAllOutputs(ResourceManager resourceManager, Map<Item, PiglinTrade> trades) {
+        Map<Item, List<OutputEntry>> resolved = new HashMap<>();
+
+        for (Map.Entry<Item, PiglinTrade> entry : trades.entrySet()) {
+            ResourceLocation lootTable = entry.getValue().lootTable().orElseThrow();
+            List<OutputEntry> outputs = LootTableParser.parseOutputs(resourceManager, lootTable);
+            if (!outputs.isEmpty()) {
+                resolved.put(entry.getKey(), List.copyOf(outputs));
+            }
+        }
+
+        return Map.copyOf(resolved);
     }
 
     /**
@@ -102,14 +119,14 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
      * Gets all registered trades as a list.
      */
     public List<PiglinTrade> getAllTradesList() {
-        return Collections.unmodifiableList(allTrades);
+        return allTrades;
     }
 
     /**
      * Gets all registered trades mapped by item.
      */
     public Map<Item, PiglinTrade> getAllTrades() {
-        return Collections.unmodifiableMap(tradesByItem);
+        return tradesByItem;
     }
 
     /**
@@ -123,14 +140,14 @@ public class PiglinTradeManager extends SimpleJsonResourceReloadListener {
      * Gets all resolved outputs for all trades.
      * This is used for syncing to clients for JEI display.
      */
-    public Map<Item, List<Item>> getResolvedOutputs() {
-        return Collections.unmodifiableMap(resolvedOutputs);
+    public Map<Item, List<OutputEntry>> getResolvedOutputs() {
+        return resolvedOutputs;
     }
 
     /**
      * Gets the resolved outputs for a specific trade item.
      */
-    public Optional<List<Item>> getOutputsForItem(Item item) {
+    public Optional<List<OutputEntry>> getOutputsForItem(Item item) {
         return Optional.ofNullable(resolvedOutputs.get(item));
     }
 }
