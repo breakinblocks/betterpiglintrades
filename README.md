@@ -122,22 +122,13 @@ To override a default trade, create a trade definition with the same item and a 
 }
 ```
 
-## Replacing Default Trades
+Put the override in your own namespace rather than writing to `data/betterpiglintrades/piglin_trades/<name>.json`. Only one pack can win a given file path, and the mod's own pack may win, in which case your file is never read at all. `priority` is compared across every definition from every namespace, so it always works.
 
-Trade definitions are ordinary datapack files, so a pack loaded after the mod can replace one by writing a valid trade definition to the same path, for example `data/betterpiglintrades/piglin_trades/gold_block.json`. The `priority` field does the same job across namespaces.
+Give every override a priority higher than the one it replaces. Two definitions for the same item at equal priority are resolved in an arbitrary order.
 
 ## Removing Trades
 
-Set `enabled` to false. The item stops being a barter currency, piglins no longer admire or accept it, and it disappears from JEI:
-
-```json
-{
-  "item": "minecraft:gold_nugget",
-  "enabled": false
-}
-```
-
-`loot_table` is not needed on a disabled trade. Disabled definitions still take part in priority resolution, so to switch off a trade another pack added at priority 50, use a higher priority:
+Set `enabled` to false, again from your own namespace and at a higher priority than the trade you are switching off:
 
 ```json
 {
@@ -146,6 +137,8 @@ Set `enabled` to false. The item stops being a barter currency, piglins no longe
   "priority": 100
 }
 ```
+
+The item stops being a barter currency, piglins no longer admire or accept it, and it disappears from JEI. `loot_table` is not needed on a disabled trade.
 
 Pointing a trade at an empty loot table is not the same thing: piglins still accept and consume the item, they just give nothing back.
 
