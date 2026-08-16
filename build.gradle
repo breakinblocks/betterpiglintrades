@@ -139,6 +139,8 @@ publishMods {
         projectSlug = "betterpiglintrades"
         accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
         minecraftVersions.add(minecraft_version)
+        clientRequired = true
+        serverRequired = true
         optional("jei")
     }
 
