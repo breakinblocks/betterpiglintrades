@@ -2,8 +2,7 @@ package com.breakinblocks.betterpiglintrades.integration.jei;
 
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
 import com.breakinblocks.betterpiglintrades.client.ClientTradeOutputCache;
-import com.breakinblocks.betterpiglintrades.data.PiglinTrade;
-import com.breakinblocks.betterpiglintrades.data.PiglinTradeManager;
+import com.breakinblocks.betterpiglintrades.data.OutputEntry;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
@@ -21,10 +20,7 @@ import java.util.Map;
 @JeiPlugin
 public class BetterPiglinTradesJEIPlugin implements IModPlugin {
 
-    private static final ResourceLocation PLUGIN_ID = new ResourceLocation(
-            BetterPiglinTrades.MOD_ID,
-            "jei_plugin"
-    );
+    private static final ResourceLocation PLUGIN_ID = BetterPiglinTrades.id("jei_plugin");
 
     private static IJeiRuntime jeiRuntime;
 
@@ -45,8 +41,7 @@ public class BetterPiglinTradesJEIPlugin implements IModPlugin {
 
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
-        Map<Item, PiglinTrade> trades = PiglinTradeManager.INSTANCE.getAllTrades();
-        for (Item item : trades.keySet()) {
+        for (Item item : ClientTradeOutputCache.getAllOutputs().keySet()) {
             registration.addRecipeCatalyst(new ItemStack(item), PiglinBarterCategory.RECIPE_TYPE);
         }
     }
@@ -54,6 +49,7 @@ public class BetterPiglinTradesJEIPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime runtime) {
         jeiRuntime = runtime;
+        ClientTradeOutputCache.setOnCacheUpdated(BetterPiglinTradesJEIPlugin::reloadRecipes);
     }
 
     public static void reloadRecipes() {
@@ -67,15 +63,12 @@ public class BetterPiglinTradesJEIPlugin implements IModPlugin {
     private static List<PiglinBarterRecipe> buildRecipes() {
         List<PiglinBarterRecipe> recipes = new ArrayList<>();
 
-        for (Map.Entry<Item, PiglinTrade> entry : PiglinTradeManager.INSTANCE.getAllTrades().entrySet()) {
-            ClientTradeOutputCache.getOutputsForItem(entry.getKey()).ifPresent(outputs -> {
-                if (!outputs.isEmpty()) {
-                    recipes.add(new PiglinBarterRecipe(
-                            new ItemStack(entry.getKey()),
-                            outputs.stream().map(ItemStack::new).toList(),
-                            entry.getValue()));
-                }
-            });
+        for (Map.Entry<Item, List<OutputEntry>> entry : ClientTradeOutputCache.getAllOutputs().entrySet()) {
+            if (entry.getValue().isEmpty()) {
+                continue;
+            }
+
+            recipes.add(new PiglinBarterRecipe(new ItemStack(entry.getKey()), entry.getValue()));
         }
 
         return recipes;

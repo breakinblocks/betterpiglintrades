@@ -3,18 +3,23 @@ package com.breakinblocks.betterpiglintrades.mixin;
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
 import com.breakinblocks.betterpiglintrades.data.PiglinTrade;
 import com.breakinblocks.betterpiglintrades.data.PiglinTradeManager;
-import net.minecraft.resources.ResourceLocation;
+import com.breakinblocks.betterpiglintrades.data.TradeItems;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.ai.util.LandRandomPos;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.piglin.PiglinAi;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -31,53 +36,32 @@ public class PiglinAiMixin {
 
     @Inject(method = "isLovedItem", at = @At("HEAD"), cancellable = true)
     private static void betterpiglintrades$isLovedItem(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
-        if (PiglinTradeManager.INSTANCE.isValidTradeItem(stack)) {
+        if (TradeItems.isTradeItem(stack)) {
             cir.setReturnValue(true);
         }
     }
 
-    @Inject(method = "isBarterCurrency", at = @At("HEAD"), cancellable = true)
-    private static void betterpiglintrades$isBarterCurrency(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
-        if (PiglinTradeManager.INSTANCE.isValidTradeItem(stack)) {
+    @Inject(method = "canAdmire", at = @At("HEAD"), cancellable = true)
+    private static void betterpiglintrades$canAdmire(Piglin piglin, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
+        if (!TradeItems.isTradeItem(stack)) {
+            return;
+        }
+
+        boolean admiringDisabled = piglin.getBrain().hasMemoryValue(MemoryModuleType.ADMIRING_DISABLED);
+        boolean admiringItem = piglin.getBrain().hasMemoryValue(MemoryModuleType.ADMIRING_ITEM);
+
+        if (!admiringDisabled && !admiringItem && piglin.isAdult()) {
             cir.setReturnValue(true);
         }
-    }
-
-    @Inject(method = "mobInteract", at = @At("HEAD"), cancellable = true)
-    private static void betterpiglintrades$mobInteract(Piglin piglin, Player player, InteractionHand hand, CallbackInfoReturnable<InteractionResult> cir) {
-        ItemStack itemStack = player.getItemInHand(hand);
-
-        if (PiglinTradeManager.INSTANCE.isValidTradeItem(itemStack) && !itemStack.is(net.minecraft.world.item.Items.GOLD_INGOT)) {
-            if (betterpiglintrades$canAdmire(piglin, itemStack)) {
-                ItemStack singleItem = itemStack.split(1);
-                piglin.setItemInHand(InteractionHand.OFF_HAND, singleItem);
-                betterpiglintrades$admireGoldItem(piglin);
-                cir.setReturnValue(InteractionResult.CONSUME);
-            }
-        }
-    }
-
-    @Unique
-    private static boolean betterpiglintrades$canAdmire(Piglin piglin, ItemStack stack) {
-        boolean admiringDisabled = piglin.getBrain().hasMemoryValue(net.minecraft.world.entity.ai.memory.MemoryModuleType.ADMIRING_DISABLED);
-        return !admiringDisabled
-                && !piglin.isBaby()
-                && piglin.getOffhandItem().isEmpty()
-                && !piglin.getBrain().hasMemoryValue(net.minecraft.world.entity.ai.memory.MemoryModuleType.ADMIRING_ITEM);
-    }
-
-    @Unique
-    private static void betterpiglintrades$admireGoldItem(Piglin piglin) {
-        piglin.getBrain().setMemoryWithExpiry(
-                net.minecraft.world.entity.ai.memory.MemoryModuleType.ADMIRING_ITEM,
-                true,
-                120L
-        );
     }
 
     @Inject(method = "wantsToPickup", at = @At("HEAD"), cancellable = true)
     private static void betterpiglintrades$wantsToPickup(Piglin piglin, ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
-        if (PiglinTradeManager.INSTANCE.isValidTradeItem(stack) && !stack.is(net.minecraft.world.item.Items.GOLD_INGOT)) {
+        if (stack.is(ItemTags.PIGLIN_REPELLENTS) || stack.is(Items.GOLD_INGOT)) {
+            return;
+        }
+
+        if (TradeItems.isTradeItem(stack)) {
             cir.setReturnValue(piglin.canPickUpLoot() && piglin.getOffhandItem().isEmpty());
         }
     }
@@ -92,19 +76,9 @@ public class PiglinAiMixin {
             piglin.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
 
             if (barterSuccess && piglin.level() instanceof ServerLevel serverLevel) {
-                List<ItemStack> responseItems = betterpiglintrades$generateLoot(serverLevel, piglin, trade);
-                if (!responseItems.isEmpty()) {
-                    betterpiglintrades$throwItems(piglin, responseItems);
-                }
+                betterpiglintrades$throwItems(piglin, betterpiglintrades$generateLoot(serverLevel, piglin, trade));
             }
             ci.cancel();
-        }
-    }
-
-    @Unique
-    private static void betterpiglintrades$throwItems(Piglin piglin, List<ItemStack> items) {
-        for (ItemStack stack : items) {
-            piglin.spawnAtLocation(stack.copy());
         }
     }
 
@@ -113,18 +87,34 @@ public class PiglinAiMixin {
         ItemStack heldItem = piglin.getOffhandItem();
 
         Optional<PiglinTrade> tradeOpt = PiglinTradeManager.INSTANCE.getTradeForItem(heldItem);
-        if (tradeOpt.isPresent()) {
-            PiglinTrade trade = tradeOpt.get();
-            if (piglin.level() instanceof ServerLevel serverLevel) {
-                cir.setReturnValue(betterpiglintrades$generateLoot(serverLevel, piglin, trade));
-            }
+        if (tradeOpt.isPresent() && piglin.level() instanceof ServerLevel serverLevel) {
+            cir.setReturnValue(betterpiglintrades$generateLoot(serverLevel, piglin, tradeOpt.get()));
+        }
+    }
+
+    @Unique
+    private static void betterpiglintrades$throwItems(Piglin piglin, List<ItemStack> items) {
+        if (items.isEmpty()) {
+            return;
+        }
+
+        Vec3 target = piglin.getBrain().getMemory(MemoryModuleType.NEAREST_VISIBLE_PLAYER)
+                .map(Entity::position)
+                .orElseGet(() -> {
+                    Vec3 nearby = LandRandomPos.getPos(piglin, 4, 2);
+                    return nearby == null ? piglin.position() : nearby;
+                });
+
+        piglin.swing(InteractionHand.OFF_HAND);
+        for (ItemStack stack : items) {
+            BehaviorUtils.throwItem(piglin, stack, target.add(0.0, 1.0, 0.0));
         }
     }
 
     @Unique
     private static List<ItemStack> betterpiglintrades$generateLoot(ServerLevel level, Piglin piglin, PiglinTrade trade) {
         try {
-            LootTable lootTable = level.getServer().getLootData().getLootTable(trade.lootTable());
+            LootTable lootTable = level.getServer().getLootData().getLootTable(trade.lootTable().orElseThrow());
 
             LootParams lootParams = new LootParams.Builder(level)
                     .withParameter(LootContextParams.THIS_ENTITY, piglin)

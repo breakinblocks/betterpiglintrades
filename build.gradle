@@ -5,6 +5,7 @@ plugins {
     id 'maven-publish'
     id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
     id 'org.spongepowered.mixin' version '0.7.+'
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
 }
 
 version = "${minecraft_version}-${mod_version}"
@@ -104,6 +105,10 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
+tasks.named('compileJava', JavaCompile).configure {
+    outputs.cacheIf { false }
+}
+
 jar {
     manifest {
         attributes([
@@ -143,5 +148,44 @@ publishing {
                 password = System.getenv("MAVEN_TOKEN") ?: ""
             }
         }
+    }
+}
+
+publishMods {
+    file = tasks.named('jar', Jar).flatMap { it.archiveFile }
+    def changelogFile = file("metadata/changelogs/${mod_version}.md")
+    changelog = changelogFile.exists() ? changelogFile.text : "Release ${version}"
+    type = STABLE
+    modLoaders.add("forge")
+
+    curseforge {
+        projectId = "1423977"
+        projectSlug = "betterpiglintrades"
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        minecraftVersions.add(minecraft_version)
+        optional("jei")
+    }
+
+    modrinth {
+        projectId = "v5cY5EAR"
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        minecraftVersions.add(minecraft_version)
+        optional("jei")
+    }
+
+    def githubToken = providers.environmentVariable("GITHUB_TOKEN")
+    if (githubToken.isPresent()) {
+        github {
+            repository = "breakinblocks/betterpiglintrades"
+            accessToken = githubToken
+            commitish = providers.environmentVariable("GITHUB_SHA").getOrElse(github_branch)
+        }
+    }
+}
+
+tasks.named('publishMods') {
+    def mavenUser = providers.environmentVariable("MAVEN_USER")
+    if (mavenUser.isPresent()) {
+        dependsOn 'publishMavenJavaPublicationToBreakInBlocksRepository'
     }
 }

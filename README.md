@@ -1,12 +1,12 @@
 # Better Piglin Trades
 
-A NeoForge mod for Minecraft 1.21.1 that makes piglin bartering fully data-driven via datapacks.
+A Forge mod for Minecraft 1.20.1 that makes piglin bartering fully data-driven via datapacks.
 
 ## Features
 
 - **Data-Driven Trades**: Define custom bartering items and their rewards using JSON files
 - **Datapack Support**: Modpack makers can add, modify, or remove trades without code changes
-- **JEI Integration**: View all possible barter outputs when checking uses on trade items
+- **JEI Integration**: View all possible barter outputs, with the chance of each one, when checking uses on trade items
 - **Tiered Rewards**: Includes default trades for gold nuggets, gold ingots, and gold blocks with appropriately scaled rewards
 
 ## Default Trades
@@ -29,7 +29,7 @@ my_datapack/
 └── data/my_namespace/
     ├── piglin_trades/
     │   └── cobblestone.json        # Trade definition
-    └── loot_table/gameplay/piglin_bartering/
+    └── loot_tables/gameplay/piglin_bartering/
         └── cobblestone.json        # Loot table
 ```
 
@@ -38,7 +38,7 @@ my_datapack/
 ```json
 {
   "pack": {
-    "pack_format": 48,
+    "pack_format": 15,
     "description": "My piglin trades"
   }
 }
@@ -58,12 +58,13 @@ Create a JSON file in `data/<namespace>/piglin_trades/<name>.json`:
 
 **Fields:**
 - `item`: The item piglins will accept for bartering (registry name)
-- `loot_table`: The loot table to use for generating rewards
+- `loot_table`: The loot table to use for generating rewards. Required unless `enabled` is false
 - `priority`: Higher priority trades override lower ones for the same item (default: 0)
+- `enabled`: Set to false to take the item out of bartering entirely (default: true)
 
 ### Loot Table
 
-Create a matching loot table at `data/<namespace>/loot_table/<path>.json`:
+Create a matching loot table at `data/<namespace>/loot_tables/<path>.json`:
 
 ```json
 {
@@ -121,18 +122,34 @@ To override a default trade, create a trade definition with the same item and a 
 }
 ```
 
+Put the override in your own namespace rather than writing to `data/betterpiglintrades/piglin_trades/<name>.json`. Only one pack can win a given file path, and the mod's own pack may win, in which case your file is never read at all. `priority` is compared across every definition from every namespace, so it always works.
+
 ## Removing Trades
 
-To effectively remove a trade, create a trade definition that points to an empty loot table.
+Set `enabled` to false, again from your own namespace and at a higher priority than the trade you are switching off:
+
+```json
+{
+  "item": "minecraft:gold_nugget",
+  "enabled": false,
+  "priority": 100
+}
+```
+
+The item stops being a barter currency, piglins no longer admire or accept it, and it disappears from JEI. `loot_table` is not needed on a disabled trade.
+
+Pointing a trade at an empty loot table is not the same thing: piglins still accept and consume the item, they just give nothing back.
 
 ## Requirements
 
-- Minecraft 1.21.1
-- NeoForge 21.1.x
+- Minecraft 1.20.1
+- Forge 47.x
 
 ## Optional Dependencies
 
-- **JEI** (Just Enough Items): Shows possible barter outputs in recipe view. Loot table outputs are automatically synced from server to client, so JEI displays all possible outputs from both mod JAR trades and external datapacks.
+- **JEI** (Just Enough Items): Shows possible barter outputs in recipe view, sorted by chance, with the per-roll chance on each output's tooltip. Loot table outputs are synced from server to client, so JEI displays outputs from both mod JAR trades and external datapacks, in singleplayer and on servers.
+
+  Chances are read from the loot table entry weights. Tables that roll more than once (the default gold block trade rolls 2 to 4 times) show the chance for a single roll, so an item can turn up more often than its listed figure. `alternatives`, `group` and `sequence` entries are approximated by their weights rather than evaluated against conditions.
 
 ## License
 

@@ -1,6 +1,6 @@
 package com.breakinblocks.betterpiglintrades.integration.jei;
 
-import com.breakinblocks.betterpiglintrades.data.PiglinTrade;
+import com.breakinblocks.betterpiglintrades.data.OutputEntry;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -10,7 +10,6 @@ import java.util.List;
  */
 public record PiglinBarterRecipe(
         ItemStack input,
-        List<ItemStack> possibleOutputs,
-        PiglinTrade trade
+        List<OutputEntry> outputs
 ) {
 }

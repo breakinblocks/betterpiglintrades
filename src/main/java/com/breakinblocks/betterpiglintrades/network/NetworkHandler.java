@@ -1,7 +1,7 @@
 package com.breakinblocks.betterpiglintrades.network;
 
 import com.breakinblocks.betterpiglintrades.BetterPiglinTrades;
-import net.minecraft.resources.ResourceLocation;
+import com.breakinblocks.betterpiglintrades.data.OutputEntry;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.network.NetworkDirection;
@@ -15,7 +15,7 @@ import java.util.Map;
 public class NetworkHandler {
     private static final String PROTOCOL_VERSION = "1";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(BetterPiglinTrades.MOD_ID, "main"),
+            BetterPiglinTrades.id("main"),
             () -> PROTOCOL_VERSION,
             PROTOCOL_VERSION::equals,
             PROTOCOL_VERSION::equals
@@ -31,7 +31,7 @@ public class NetworkHandler {
                 .add();
     }
 
-    public static void sendToPlayer(ServerPlayer player, Map<Item, List<Item>> tradeOutputs) {
+    public static void sendToPlayer(ServerPlayer player, Map<Item, List<OutputEntry>> tradeOutputs) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SyncTradeOutputsMessage(tradeOutputs));
     }
 }
