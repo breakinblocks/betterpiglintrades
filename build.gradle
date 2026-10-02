@@ -185,6 +185,14 @@ publishMods {
     }
 }
 
+tasks.withType(AbstractPublishToMaven).configureEach {
+    dependsOn 'reobfJar'
+}
+
+tasks.matching { it.name in ['publishCurseforge', 'publishModrinth', 'publishGithub', 'publishMods'] }.configureEach {
+    dependsOn 'reobfJar'
+}
+
 tasks.named('publishMods') {
     def mavenUser = providers.environmentVariable("MAVEN_USER")
     if (mavenUser.isPresent()) {
